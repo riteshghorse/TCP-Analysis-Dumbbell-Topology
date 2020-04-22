@@ -129,29 +129,6 @@ void App::ChangeRate (DataRate rate)
 }
 
 
-ApplicationContainer exp1 (Address sinkAddress, uint16_t sinkPort, Ipv4Address address, Ptr<Node> sender, Ptr<Node> destination)
-{
-  uint32_t maxBytes = 20*1024;
-  // uint packetSize = 1.2*1024;   // 1.2KB
-  // uint numPackets = maxBytes / packetSize;
-  // set tcp cubic as protocol to use
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId()));
-
-  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
-  ApplicationContainer sinkApps = packetSinkHelper.Install (destination);
-  sinkApps.Start (Seconds (0.));
-
-  BulkSendHelper bulkSender ("ns3::TcpSocketFactory", InetSocketAddress (address, sinkPort));
-  bulkSender.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-  ApplicationContainer app = bulkSender.Install (sender);
-  // Ptr<App> app = CreateObject<App> ();
-  // app->Init (bulkSender, sinkAddress, packetSize, numPackets, DataRate("1Gbps"));
-  // sender->AddApplication (app);
-  app.Start (Seconds (1.));
-
-  return sinkApps;
-}
-
 int main (int argc, char *argv[])
 {
   CommandLine cmd;
@@ -206,39 +183,10 @@ int main (int argc, char *argv[])
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-
-  // experiment 1 starts here
-  uint16_t sinkPort_1 = 8080;
-  Address sinkAddress_1 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_1));
-  // ApplicationContainer sinkApps_1 = exp1(sinkAddress_1, sinkPort_1, i3i5.GetAddress (1),nodes.Get (0), nodes.Get (4));
-  uint32_t maxBytes = 20*1024;
-  // uint packetSize = 1.2*1024;   // 1.2KB
-  // uint numPackets = maxBytes / packetSize;
-  // set tcp cubic as protocol to use
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId()));
-
-  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort_1));
-  ApplicationContainer sinkApps_1 = packetSinkHelper.Install (nodes.Get (0));
-  sinkApps_1.Start (Seconds (0.));
-  sinkApps_1.Stop (Seconds (10.));
-  BulkSendHelper bulkSender ("ns3::TcpSocketFactory", InetSocketAddress (i3i5.GetAddress (1), sinkPort_1));
-  bulkSender.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-  ApplicationContainer app = bulkSender.Install (nodes.Get (0));
-  // Ptr<App> app = CreateObject<App> ();
-  // app->Init (bulkSender, sinkAddress, packetSize, numPackets, DataRate("1Gbps"));
-  // sender->AddApplication (app);
-  app.Start (Seconds (1.));
-
-  app.Stop (Seconds (10.));
-  
-/*
-
-
-
   // tcp from no to n4
   uint16_t sinkPort_1 = 8080;
   Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
-  PacketSin kHelper packetSinkHelper_1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_1));
+  PacketSinkHelper packetSinkHelper_1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_1));
   ApplicationContainer sinkApps_1 = packetSinkHelper_1.Install (nodes.Get (4));
   sinkApps_1.Start (Seconds (0.));
   sinkApps_1.Stop (Seconds (100.));
@@ -249,8 +197,8 @@ int main (int argc, char *argv[])
   Ptr<App> app_1 = CreateObject<App> ();
   app_1->Init (ns3TcpSocket_1, sinkAddress_1, 1040, 100000, DataRate ("1Gbps"));
   nodes.Get(0)->AddApplication (app_1);
-  // app_1->SetStartTime (Seconds (1.));
-  // app_1->SetStopTime (Seconds (100.));
+  app_1->SetStartTime (Seconds (1.));
+  app_1->SetStopTime (Seconds (100.));
 
 
   // tcp from n1 to n5
@@ -267,9 +215,9 @@ int main (int argc, char *argv[])
   Ptr<App> app_2 = CreateObject<App> ();
   app_2->Init (ns3TcpSocket_2, sinkAddress_2, 1040, 100000, DataRate ("1Gbps"));
   nodes.Get(1)->AddApplication (app_2);
-  // app_2->SetStartTime (Seconds (1.));
-  // app_2->SetStopTime (Seconds (100.));
-*/
+  app_2->SetStartTime (Seconds (1.));
+  app_2->SetStopTime (Seconds (100.));
+
 
   // Both the destination nodes have started thier service at this point
 
@@ -282,10 +230,8 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
   anim.SetConstantPosition (nodes.Get(4), 80.0, 70.0);
 
-  // Simulator::Stop (Seconds(100.0));
+  Simulator::Stop (Seconds(10.0));
   Simulator::Run ();
-  Simulator::Destroy ();
-  Ptr<PacketSink> check_sink = DynamicCast<PacketSink> (sinkApps_1.Get (0));
-  std::cout << "Total Bytes Rcvd: " << check_sink->GetTotalRx () << std::endl;
+  Simulator::Destroy();
   return 0;
 }
