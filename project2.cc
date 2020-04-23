@@ -135,8 +135,8 @@ int main (int argc, char *argv[])
 
   cmd.Parse (argc, argv);
   uint32_t maxBytes = 1 * 1024 * 1024;
-  uint32_t packetSize = 1.2 * 1024;
-  uint32_t numPackets = maxBytes / packetSize;
+  // uint32_t packetSize = 1.2 * 1024;
+  // uint32_t numPackets = maxBytes / packetSize;
   Time::SetResolution (Time::NS); 
 
   NS_LOG_INFO ("Creating Nodes");
@@ -193,6 +193,21 @@ int main (int argc, char *argv[])
   sinkApps_1.Start (Seconds (0.));
   sinkApps_1.Stop (Seconds (10.));
 
+  // modified code for blk send start----------------------------
+
+  BulkSendHelper sourceHelper ("ns3::TcpSocketFactory", sinkAddress_1);
+  sourceHelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
+  ApplicationContainer sourceApp = sourceHelper.Install (nodes.Get (0));
+  sourceApp.Start (Seconds (0.));
+  sourceApp.Stop (Seconds (10.));
+
+
+  // modified code for blk send end---------------------------------
+
+
+
+
+/*
   Ptr<Socket> ns3TcpSocket_1 = Socket::CreateSocket (nodes.Get (0), TcpSocketFactory::GetTypeId ());
 
   // create tcp application at n0
@@ -202,7 +217,7 @@ int main (int argc, char *argv[])
   app_1->SetStartTime (Seconds (1.));
   app_1->SetStopTime (Seconds (10.));
   
-  
+  */
   // second starts
   // tcp from n1 to n5
   uint16_t sinkPort_2 = 8080;
@@ -233,8 +248,11 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
   anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
+  Simulator::Stop (Seconds (25.));
   Simulator::Run ();
-  Simulator::Destroy();
-  
+  // Simulator::Destroy();
+  Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1.Get (0));
+  std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
+
   return 0;
 }
