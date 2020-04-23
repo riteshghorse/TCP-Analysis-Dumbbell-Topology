@@ -134,7 +134,9 @@ int main (int argc, char *argv[])
   CommandLine cmd;
 
   cmd.Parse (argc, argv);
-
+  uint32_t maxBytes = 1 * 1024 * 1024;
+  uint32_t packetSize = 1.2 * 1024;
+  uint32_t numPackets = maxBytes / packetSize;
   Time::SetResolution (Time::NS); 
 
   NS_LOG_INFO ("Creating Nodes");
@@ -189,35 +191,36 @@ int main (int argc, char *argv[])
   PacketSinkHelper packetSinkHelper_1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_1));
   ApplicationContainer sinkApps_1 = packetSinkHelper_1.Install (nodes.Get (4));
   sinkApps_1.Start (Seconds (0.));
-  sinkApps_1.Stop (Seconds (100.));
+  sinkApps_1.Stop (Seconds (10.));
 
   Ptr<Socket> ns3TcpSocket_1 = Socket::CreateSocket (nodes.Get (0), TcpSocketFactory::GetTypeId ());
 
   // create tcp application at n0
   Ptr<App> app_1 = CreateObject<App> ();
-  app_1->Init (ns3TcpSocket_1, sinkAddress_1, 1040, 100000, DataRate ("1Gbps"));
+  app_1->Init (ns3TcpSocket_1, sinkAddress_1, packetSize, numPackets, DataRate ("1Gbps"));
   nodes.Get(0)->AddApplication (app_1);
   app_1->SetStartTime (Seconds (1.));
-  app_1->SetStopTime (Seconds (100.));
-
-
+  app_1->SetStopTime (Seconds (10.));
+  
+  
+  // second starts
   // tcp from n1 to n5
   uint16_t sinkPort_2 = 8080;
   Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
   PacketSinkHelper packetSinkHelper_2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_2));
   ApplicationContainer sinkApps_2 = packetSinkHelper_2.Install (nodes.Get (5));
   sinkApps_2.Start (Seconds (0.));
-  sinkApps_2.Stop (Seconds (100.));
-
+  sinkApps_2.Stop (Seconds (20.));
+  
   Ptr<Socket> ns3TcpSocket_2 = Socket::CreateSocket (nodes.Get (1), TcpSocketFactory::GetTypeId ());
 
   // create tcp application at n0
   Ptr<App> app_2 = CreateObject<App> ();
   app_2->Init (ns3TcpSocket_2, sinkAddress_2, 1040, 100000, DataRate ("1Gbps"));
   nodes.Get(1)->AddApplication (app_2);
-  app_2->SetStartTime (Seconds (1.));
-  app_2->SetStopTime (Seconds (100.));
-
+  app_2->SetStartTime (Seconds (11.));
+  app_2->SetStopTime (Seconds (20.));
+  // Simulator::Stop (Seconds(20.0));
 
   // Both the destination nodes have started thier service at this point
 
@@ -228,10 +231,10 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(2), 40.0, 40.0);
   anim.SetConstantPosition (nodes.Get(3), 60.0, 40.0);
   anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
-  anim.SetConstantPosition (nodes.Get(4), 80.0, 70.0);
+  anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
-  Simulator::Stop (Seconds(10.0));
   Simulator::Run ();
   Simulator::Destroy();
+  
   return 0;
 }
