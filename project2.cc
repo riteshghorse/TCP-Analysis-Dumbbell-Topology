@@ -128,15 +128,36 @@ void App::ChangeRate (DataRate rate)
   m_dataRate = rate;
 }
 
+ApplicationContainer exp1(Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, double startTime, double endTime)
+{
+    // tcp from no to n4
+  uint maxBytes = 50 * 1024 * 1024;
+  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort));
+  ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
+  sinkApp.Start (Seconds (startTime));
+  sinkApp.Stop (Seconds (endTime));
+
+  // modified code for blk send start----------------------------
+
+  BulkSendHelper sourceHelper ("ns3::TcpSocketFactory", sinkAddress);
+  sourceHelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
+  ApplicationContainer sourceApp = sourceHelper.Install (src);
+  sourceApp.Start (Seconds (startTime));
+  sourceApp.Stop (Seconds (endTime));
+  // modified code for blk send end---------------------------------
+  return sinkApp;
+}
+
 
 int main (int argc, char *argv[])
 {
   CommandLine cmd;
 
   cmd.Parse (argc, argv);
-  uint32_t maxBytes = 1 * 1024 * 1024;
+  // uint32_t maxBytes = 1 * 1024 * 1024;
   // uint32_t packetSize = 1.2 * 1024;
   // uint32_t numPackets = maxBytes / packetSize;
+  double startTime, endTime, gapTime=10.0;
   Time::SetResolution (Time::NS); 
 
   NS_LOG_INFO ("Creating Nodes");
@@ -163,7 +184,7 @@ int main (int argc, char *argv[])
   NetDeviceContainer d1d2 = pointToPoint.Install (n1n2);
   NetDeviceContainer d2d3 = pointToPoint.Install (n2n3);
   NetDeviceContainer d3d4 = pointToPoint.Install (n3n4);
-  NetDeviceContainer d3d5 = pointToPoint.Install (n3n5);
+  NetDeviceContainer d3d5 = pointToPoint.Install (n3n5); 
 
   // adding IP addresses
   Ipv4AddressHelper address;
@@ -188,54 +209,17 @@ int main (int argc, char *argv[])
   // tcp from no to n4
   uint16_t sinkPort_1 = 8080;
   Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
-  PacketSinkHelper packetSinkHelper_1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_1));
-  ApplicationContainer sinkApps_1 = packetSinkHelper_1.Install (nodes.Get (4));
-  sinkApps_1.Start (Seconds (0.));
-  sinkApps_1.Stop (Seconds (10.));
+  startTime = 0.0;
+  endTime = 10.0;
+  ApplicationContainer sinkApps_1 = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, startTime, endTime);
 
-  // modified code for blk send start----------------------------
-
-  BulkSendHelper sourceHelper ("ns3::TcpSocketFactory", sinkAddress_1);
-  sourceHelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-  ApplicationContainer sourceApp = sourceHelper.Install (nodes.Get (0));
-  sourceApp.Start (Seconds (0.));
-  sourceApp.Stop (Seconds (10.));
-
-
-  // modified code for blk send end---------------------------------
-
-
-
-
-/*
-  Ptr<Socket> ns3TcpSocket_1 = Socket::CreateSocket (nodes.Get (0), TcpSocketFactory::GetTypeId ());
-
-  // create tcp application at n0
-  Ptr<App> app_1 = CreateObject<App> ();
-  app_1->Init (ns3TcpSocket_1, sinkAddress_1, packetSize, numPackets, DataRate ("1Gbps"));
-  nodes.Get(0)->AddApplication (app_1);
-  app_1->SetStartTime (Seconds (1.));
-  app_1->SetStopTime (Seconds (10.));
-  
-  */
   // second starts
   // tcp from n1 to n5
   uint16_t sinkPort_2 = 8080;
   Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
-  PacketSinkHelper packetSinkHelper_2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort_2));
-  ApplicationContainer sinkApps_2 = packetSinkHelper_2.Install (nodes.Get (5));
-  sinkApps_2.Start (Seconds (0.));
-  sinkApps_2.Stop (Seconds (20.));
-  
-  Ptr<Socket> ns3TcpSocket_2 = Socket::CreateSocket (nodes.Get (1), TcpSocketFactory::GetTypeId ());
-
-  // create tcp application at n0
-  Ptr<App> app_2 = CreateObject<App> ();
-  app_2->Init (ns3TcpSocket_2, sinkAddress_2, 1040, 100000, DataRate ("1Gbps"));
-  nodes.Get(1)->AddApplication (app_2);
-  app_2->SetStartTime (Seconds (11.));
-  app_2->SetStopTime (Seconds (20.));
-  // Simulator::Stop (Seconds(20.0));
+  startTime += gapTime + 1;
+  endTime += gapTime;
+  ApplicationContainer sinkApps_2 = exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, startTime, endTime);
 
   // Both the destination nodes have started thier service at this point
 
@@ -250,9 +234,11 @@ int main (int argc, char *argv[])
 
   Simulator::Stop (Seconds (25.));
   Simulator::Run ();
-  // Simulator::Destroy();
+  Simulator::Destroy();
   Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1.Get (0));
   std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
 
+  Ptr<PacketSink> sink2 = DynamicCast<PacketSink> (sinkApps_2.Get (0));
+  std::cout << "total bytes rcvd : " << sink2->GetTotalRx () << std::endl;
   return 0;
 }
