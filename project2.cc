@@ -37,6 +37,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/netanim-module.h"
+#include "ns3/flow-monitor-module.h"
 
 using namespace ns3;
 
@@ -245,9 +246,41 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
   anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
+  FlowMonitorHelper flowmon;
+  Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+
   Simulator::Stop (Seconds (25.));
   Simulator::Run ();
   Simulator::Destroy();
+  
+  
+  // adding code for flow monitor ------------------------
+
+  // FlowMonitorHelper flowmon;
+  // Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+
+  monitor->CheckForLostPackets ();
+
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+  std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i!=stats.end (); ++i)
+  {
+    Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+    if ((t.sourceAddress=="10.1.1.1" && t.destinationAddress=="10.1.4.2"))
+    {
+      std::cout << "Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+      std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
+      std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+      std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024  << " Mbps\n";
+    }
+  }
+
+  monitor->SerializeToXmlFile ("project-2.flowmon", true, true);
+  // adding code for flow monitor ------------------------
+  
+  
+  
+  
   Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1.Get (0));
   std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
 
