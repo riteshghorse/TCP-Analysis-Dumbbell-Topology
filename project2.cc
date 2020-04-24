@@ -220,13 +220,37 @@ int main (int argc, char *argv[])
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
+  // for netanim---------------------------------------------------
+  AnimationInterface anim ("project.xml");
+  anim.SetConstantPosition (nodes.Get(0), 10.0, 10.0);
+  anim.SetConstantPosition (nodes.Get(1), 10.0, 70.0);
+  anim.SetConstantPosition (nodes.Get(2), 40.0, 40.0);
+  anim.SetConstantPosition (nodes.Get(3), 60.0, 40.0);
+  anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
+  anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
+
+
+  // running an experiment three times
+   uint16_t sinkPort_1 = 8080;
+  Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
+  startTime = 0.0;
+  endTime = 10.0;
+  ApplicationContainer sinkApps_1[3] ;
+  int i = 3;
+  while(i--)
+  {
+    sinkApps_1[i] = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    startTime += gapTime + 1;
+    endTime += gapTime;
+  }
+  /*
   // tcp from no to n4
   uint16_t sinkPort_1 = 8080;
   Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
   startTime = 0.0;
   endTime = 10.0;
   ApplicationContainer sinkApps_1 = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
-
+  */
   // second starts
   // tcp from n1 to n5
   uint16_t sinkPort_2 = 8080;
@@ -237,14 +261,6 @@ int main (int argc, char *argv[])
 
   // Both the destination nodes have started thier service at this point
 
-
-  AnimationInterface anim ("project.xml");
-  anim.SetConstantPosition (nodes.Get(0), 10.0, 10.0);
-  anim.SetConstantPosition (nodes.Get(1), 10.0, 70.0);
-  anim.SetConstantPosition (nodes.Get(2), 40.0, 40.0);
-  anim.SetConstantPosition (nodes.Get(3), 60.0, 40.0);
-  anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
-  anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
@@ -281,7 +297,7 @@ int main (int argc, char *argv[])
   
   
   
-  Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1.Get (0));
+  Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1[0].Get (0));
   std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
 
   Ptr<PacketSink> sink2 = DynamicCast<PacketSink> (sinkApps_2.Get (0));
