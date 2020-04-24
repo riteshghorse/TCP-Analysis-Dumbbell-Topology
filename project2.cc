@@ -233,6 +233,9 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
   anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
+  FlowMonitorHelper flowmon;
+  Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+
   Simulator::Stop (Seconds (25.));
   Simulator::Run ();
   Simulator::Destroy();
@@ -240,8 +243,8 @@ int main (int argc, char *argv[])
   
   // adding code for flow monitor ------------------------
 
-  FlowMonitorHelper flowmon;
-  Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+  // FlowMonitorHelper flowmon;
+  // Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
   monitor->CheckForLostPackets ();
 
@@ -259,7 +262,7 @@ int main (int argc, char *argv[])
     }
   }
 
-  monitor->SerializeToXmlFile ("project-2.1", true, true);
+  monitor->SerializeToXmlFile ("project-2.flowmon", true, true);
   // adding code for flow monitor ------------------------
   
   
