@@ -128,9 +128,22 @@ void App::ChangeRate (DataRate rate)
   m_dataRate = rate;
 }
 
-ApplicationContainer exp1(Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, double startTime, double endTime)
+ApplicationContainer exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, std::string tcp_version, double startTime, double endTime)
 {
     // tcp from no to n4
+  if(tcp_version.compare ("TcpBic"))
+  {
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId()));
+  }
+  else if (tcp_version.compare ("TcpDctcp"))
+  {
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpDctcp::GetTypeId()));
+  }
+  else
+  {
+    exit(EXIT_FAILURE);
+  }
+  
   uint maxBytes = 50 * 1024 * 1024;
   PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort));
   ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
@@ -211,7 +224,7 @@ int main (int argc, char *argv[])
   Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
   startTime = 0.0;
   endTime = 10.0;
-  ApplicationContainer sinkApps_1 = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, startTime, endTime);
+  ApplicationContainer sinkApps_1 = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
 
   // second starts
   // tcp from n1 to n5
@@ -219,7 +232,7 @@ int main (int argc, char *argv[])
   Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
   startTime += gapTime + 1;
   endTime += gapTime;
-  ApplicationContainer sinkApps_2 = exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, startTime, endTime);
+  ApplicationContainer sinkApps_2 = exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
 
   // Both the destination nodes have started thier service at this point
 
