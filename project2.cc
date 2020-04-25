@@ -145,7 +145,7 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
     exit(EXIT_FAILURE);
   }
   
-  uint maxBytes = 50 * 1024 * 1024;
+  uint maxBytes = 500 * 1024 * 1024;
   PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort));
   ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
   sinkApp.Start (Seconds (startTime));
@@ -161,6 +161,49 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
   // modified code for blk send end---------------------------------
 }
 
+double getStandardDeviation (std::vector<double> v, double mean, int start)
+{
+  double sdv = 0.0;
+  for(int i=start; i<start+3; ++i)
+    sdv += pow(v[i]-mean, 2);
+  
+  return sqrt (sdv / 3);
+}
+void writeToFile(int index, std::vector<double> v)
+{
+  int sum = 0;
+  double avg, sdv;
+  double avg2, sdv2;
+  std::ofstream file;
+  file.open("tcp_rghorse.csv", std::ios_base::app);
+  if(v.size() == 3)
+  {
+    sum = 0;
+    for(int i=0; i<3; ++i)
+      sum += v[i];
+    avg = sum/3;
+    sdv = getStandardDeviation(v, avg, 0);
+    file << "th_" << index << "," << v[0] << "," << v[1] << "," << v[2] << "," << avg << "," << sdv << "," << "Mbps,,,,,,\n" ;
+    file.close();
+    return;
+  }
+  if(v.size() == 6)
+  {
+    sum = 0;
+    for(int i=0; i<3; ++i)
+      sum += v[i];
+    avg = sum/3;
+    sdv = getStandardDeviation(v, avg, 0);
+    sum = 0;
+    for(int i=3; i<6; ++i)
+      sum += v[i];
+    avg2 = sum/3;
+    sdv2 = getStandardDeviation(v, avg2, 3);
+    file << "th_" << index << "," << v[0] << "," << v[1] << "," << v[2] << "," << avg << "," << sdv << "," << "Mbps," << v[3] << "," << v[4] << "," << v[5] << "," << avg2 << "," << sdv2 << "," << "Mbps\n" ;
+    file.close();
+    return;
+  }
+}
 
 int main (int argc, char *argv[])
 {
@@ -171,6 +214,18 @@ int main (int argc, char *argv[])
   // uint32_t packetSize = 1.2 * 1024;
   // uint32_t numPackets = maxBytes / packetSize;
   double startTime, endTime, gapTime=10.0;
+  double thro;
+  int index, value, k_index;
+  std::vector<double> thro_v;
+  std::map<int, int> results;
+
+
+  results.insert ( std::pair<int, int>(1, 3));
+  results.insert ( std::pair<int, int>(2, 6));
+  results.insert ( std::pair<int, int>(3, 3));
+  results.insert ( std::pair<int, int>(4, 6));
+  results.insert ( std::pair<int, int>(5, 6));
+
   Time::SetResolution (Time::NS); 
 
   NS_LOG_INFO ("Creating Nodes");
@@ -241,46 +296,59 @@ int main (int argc, char *argv[])
   int i = 3;
 
   // Experiment 1
-  
-  while(i--)
+  while (i--)
   {
-    exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
     startTime += gapTime + 1;
     endTime += gapTime;
   }
 
   // Experiment 2
   i = 3;
-  while(i--)
+  while (i--)
   {
-    exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
-    exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpBic", startTime, endTime);
+    exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpBic", startTime, endTime);
     startTime += gapTime;
     endTime += gapTime;
   }
-  /*
-  // tcp from no to n4
-  uint16_t sinkPort_1 = 8080;
-  Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
-  startTime = 0.0;
-  endTime = 10.0;
-  ApplicationContainer sinkApps_1 = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
-  */
-  // second starts
-  // tcp from n1 to n5
-  /*uint16_t sinkPort_2 = 8080;
-  Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
-  startTime += gapTime + 1;
-  endTime += gapTime;
-  ApplicationContainer sinkApps_2 = exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
-*/
+
+  // Experiment 3
+  i = 3;
+  while (i--)
+  {
+    exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpDctcp", startTime, endTime);
+    startTime += gapTime + 1;
+    endTime += gapTime;
+  }
+
+
+  // Experiment 4
+  i = 3;
+  while (i--)
+  {
+    exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpDctcp", startTime, endTime);
+    exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
+    startTime += gapTime;
+    endTime += gapTime;
+  }
+
+  // Experiment 5
+  i = 3;
+  while (i--)
+  {
+    exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
+    startTime += gapTime;
+    endTime += gapTime;
+  }
   // Both the destination nodes have started thier service at this point
 
 
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
-  Simulator::Stop (Seconds (125.));
+  Simulator::Stop (Seconds (240.));
   Simulator::Run ();
   Simulator::Destroy();
   
@@ -294,6 +362,10 @@ int main (int argc, char *argv[])
 
   Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
   std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+  //code for output
+  index = 1;
+  value = results[index];
+  k_index = 0;
   for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i!=stats.end (); ++i)
   {
     Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
@@ -304,6 +376,17 @@ int main (int argc, char *argv[])
       std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
       std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024  << " Mbps\n";
     // }
+    thro = i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024;
+    thro_v.push_back(thro);
+    ++k_index;
+    if(k_index == value)
+    {
+      k_index = 0;
+      writeToFile(index, thro_v);
+      thro_v.clear();
+      ++index;
+      value = results[index];
+    }
   }
 
   monitor->SerializeToXmlFile ("project-2.flowmon", true, true);
