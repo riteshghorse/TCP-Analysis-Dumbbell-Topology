@@ -129,7 +129,7 @@ void App::ChangeRate (DataRate rate)
   m_dataRate = rate;
 }
 
-ApplicationContainer exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, std::string tcp_version, double startTime, double endTime)
+void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, std::string tcp_version, double startTime, double endTime)
 {
     // tcp from no to n4
   if(tcp_version.compare ("TcpBic"))
@@ -159,7 +159,6 @@ ApplicationContainer exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, u
   sourceApp.Start (Seconds (startTime));
   sourceApp.Stop (Seconds (endTime));
   // modified code for blk send end---------------------------------
-  return sinkApp;
 }
 
 
@@ -230,17 +229,33 @@ int main (int argc, char *argv[])
   anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
 
 
-  // running an experiment three times
-   uint16_t sinkPort_1 = 8080;
+  
+  uint16_t sinkPort_1 = 8080;
   Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
+  
+  uint16_t sinkPort_2 = 8080;
+  Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
+  
   startTime = 0.0;
   endTime = 10.0;
-  ApplicationContainer sinkApps_1[3] ;
   int i = 3;
+
+  // Experiment 1
+  
   while(i--)
   {
-    sinkApps_1[i] = exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
     startTime += gapTime + 1;
+    endTime += gapTime;
+  }
+
+  // Experiment 2
+  i = 3;
+  while(i--)
+  {
+    exp1(nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+    exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpBic", startTime, endTime);
+    startTime += gapTime;
     endTime += gapTime;
   }
   /*
@@ -253,19 +268,19 @@ int main (int argc, char *argv[])
   */
   // second starts
   // tcp from n1 to n5
-  uint16_t sinkPort_2 = 8080;
+  /*uint16_t sinkPort_2 = 8080;
   Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
   startTime += gapTime + 1;
   endTime += gapTime;
   ApplicationContainer sinkApps_2 = exp1(nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
-
+*/
   // Both the destination nodes have started thier service at this point
 
 
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
-  Simulator::Stop (Seconds (25.));
+  Simulator::Stop (Seconds (125.));
   Simulator::Run ();
   Simulator::Destroy();
   
@@ -282,13 +297,13 @@ int main (int argc, char *argv[])
   for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i!=stats.end (); ++i)
   {
     Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
-    if ((t.sourceAddress=="10.1.1.1" && t.destinationAddress=="10.1.4.2"))
-    {
+    // if ((t.sourceAddress=="10.1.1.1" && t.destinationAddress=="10.1.4.2"))
+    // {
       std::cout << "Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
       std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
       std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
       std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024  << " Mbps\n";
-    }
+    // }
   }
 
   monitor->SerializeToXmlFile ("project-2.flowmon", true, true);
@@ -297,10 +312,10 @@ int main (int argc, char *argv[])
   
   
   
-  Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1[0].Get (0));
-  std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
+  // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1[0].Get (0));
+  // std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
 
-  Ptr<PacketSink> sink2 = DynamicCast<PacketSink> (sinkApps_2.Get (0));
-  std::cout << "total bytes rcvd : " << sink2->GetTotalRx () << std::endl;
+  // Ptr<PacketSink> sink2 = DynamicCast<PacketSink> (sinkApps_2.Get (0));
+  // std::cout << "total bytes rcvd : " << sink2->GetTotalRx () << std::endl;
   return 0;
 }
