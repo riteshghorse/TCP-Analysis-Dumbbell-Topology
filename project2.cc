@@ -44,91 +44,6 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("TcpAnalysis");
 
 
-class App : public Application
-{
-  private:
-    virtual void StartApplication (void);
-    virtual void StopApplication (void);
-    void ScheduleTx ();
-    void SendPacket ();
-
-    Ptr<Socket>     m_socket;
-    Address         m_peer;
-    uint32_t        m_packetSize;
-    uint32_t        m_n_Packets;
-    DataRate        m_dataRate;
-    EventId         m_sendEvent;
-    bool            m_running;
-    uint32_t        m_packetsSent;
-  public:
-    App ();
-    virtual ~App ();
-    void Init (Ptr<Socket> socket, Address address, uint32_t packetSize, uint32_t nPackets, DataRate dataRate);
-    void ChangeRate (DataRate rate);
-    void Receive (int nbytes);
-};
-
-App::App () : m_socket (0), m_peer (), m_packetSize (0), m_n_Packets (0), m_dataRate (0),
-    m_sendEvent (), m_running (false), m_packetsSent (0){
-}
-
-App::~App ()
-{
-  m_socket = 0;
-}
-
-void App::Init (Ptr<Socket> socket, Address address, uint32_t packetSize, uint32_t nPackets, DataRate dataRate)
-{
-  m_socket = socket;
-  m_peer = address;
-  m_packetSize = packetSize;
-  m_n_Packets = nPackets;
-  m_dataRate = dataRate;
-}
-
-void App::StartApplication (void)
-{
-  m_running = true;
-  m_packetsSent = 0;
-  m_socket->Bind ();
-  m_socket->Connect (m_peer);
-  SendPacket ();
-}
-
-void App::StopApplication (void)
-{
-  m_running = false;
-
-  if (m_sendEvent.IsRunning ())
-    Simulator::Cancel (m_sendEvent);
-
-  if (m_socket)
-    m_socket->Close ();
-}
-
-void App::SendPacket ()
-{
-  Ptr<Packet> packet = Create<Packet> (m_packetSize);
-  m_socket->Send (packet);
-
-  if (++m_packetsSent < m_n_Packets)
-    ScheduleTx ();  
-}
-
-void App::ScheduleTx ()
-{
-  if (m_running)
-  {
-    Time tNext (Seconds (m_packetSize * 8 / static_cast<double> (m_dataRate.GetBitRate ())));
-    m_sendEvent = Simulator::Schedule (tNext, &App::SendPacket, this);
-  }
-}
-
-void App::ChangeRate (DataRate rate)
-{
-  m_dataRate = rate;
-}
-
 void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, std::string tcp_version, double startTime, double endTime)
 {
     // tcp from no to n4
@@ -145,7 +60,7 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
     exit(EXIT_FAILURE);
   }
   
-  uint maxBytes = 500 * 1024 * 1024;
+  uint maxBytes = 1 * 1024;
   PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), sinkPort));
   ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
   sinkApp.Start (Seconds (startTime));
@@ -161,47 +76,82 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
   // modified code for blk send end---------------------------------
 }
 
-double getStandardDeviation (std::vector<double> v, double mean, int start)
+double getStandardDeviation (double arr[], double mean, int start, int end)
 {
   double sdv = 0.0;
-  for(int i=start; i<start+3; ++i)
-    sdv += pow(v[i]-mean, 2);
+  for(int i=start; i<end; ++i)
+    sdv += pow(arr[i]-mean, 2);
   
   return sqrt (sdv / 3);
 }
-void writeToFile(int index, std::vector<double> v)
+void writeToFile(int index, std::vector<double> v, std::vector<double> fctv)
 {
   int sum = 0;
   double avg, sdv;
   double avg2, sdv2;
-  std::ofstream file;
-  file.open("tcp_rghorse.csv", std::ios_base::app);
-  if(v.size() == 3)
+  std::ofstream file, file2;
+  file.open ("tcp_rghorse.csv", std::ios_base::app);
+  file2.open ("achfile.csv", std::ios_base::app);
+  if (v.size () == 6)
   {
+    double arr[] = {v[0], v[2], v[4]};
+    double farr[] = {fctv[0], fctv[2], fctv[4]};
     sum = 0;
     for(int i=0; i<3; ++i)
-      sum += v[i];
+      sum += arr[i];
     avg = sum/3;
-    sdv = getStandardDeviation(v, avg, 0);
-    file << "th_" << index << "," << v[0] << "," << v[1] << "," << v[2] << "," << avg << "," << sdv << "," << "Mbps,,,,,,\n" ;
+    sdv = getStandardDeviation(arr, avg, 0, 3);
+    file << "th_" << index << "," << arr[0] << "," << arr[1] << "," << arr[2] << "," << avg << "," << sdv << "," << "Mbps,,,,,,\n" ;
+    file.close();
+    sum = 0;
+    for(int i=0; i<3; ++i)
+      sum += farr[i];
+    avg = sum/3;
+    sdv = getStandardDeviation(farr, avg, 0, 3);
+    file2 << "afct_" << index << "," << farr[0] << "," << farr[1] << "," << farr[2] << "," << avg << "," << sdv << "," << "sec,,,,,,\n" ;
+    file2.close();
+    return;
+  }
+  if(v.size() == 12)
+  {
+    double arr[] = {v[0], v[4], v[8], v[1], v[5], v[9]};
+    double farr[] = {fctv[0], fctv[4], fctv[8], fctv[1], fctv[5], fctv[9]};
+    sum = 0;
+    for(int i=0; i<3; ++i)
+      sum += arr[i];
+    avg = sum/3;
+    sdv = getStandardDeviation(arr, avg, 0, 3);
+    sum = 0;
+    for(int i=3; i<6; ++i)
+      sum += arr[i];
+    avg2 = sum/3;
+    sdv2 = getStandardDeviation(arr, avg2, 3, 6);
+    file << "th_" << index << "," << arr[0] << "," << arr[1] << "," << arr[2] << "," << avg << "," << sdv << "," << "Mbps," << arr[3] << "," << arr[4] << "," << arr[5] << "," << avg2 << "," << sdv2 << "," << "Mbps\n" ;
+    file.close();
+    sum = 0;
+    for(int i=0; i<3; ++i)
+      sum += farr[i];
+    avg = sum/3;
+    sdv = getStandardDeviation(farr, avg, 0, 3);
+    sum = 0;
+    for(int i=3; i<6; ++i)
+      sum += farr[i];
+    avg2 = sum/3;
+    sdv2 = getStandardDeviation(farr, avg2, 3, 6);
+    file2 << "afct_" << index << "," << farr[0] << "," << farr[1] << "," << farr[2] << "," << avg << "," << sdv << "," << "sec," << farr[3] << "," << farr[4] << "," << farr[5] << "," << avg2 << "," << sdv2 << "," << "sec\n" ;
     file.close();
     return;
   }
-  if(v.size() == 6)
+}
+
+void mergeFiles()
+{
+  std::ifstream in("achfile.csv");
+  std::ofstream out("tcp_rghorse.csv", std::ios_base::out | std::ios_base::app);
+
+  for (std::string str; std::getline(in, str); )
   {
-    sum = 0;
-    for(int i=0; i<3; ++i)
-      sum += v[i];
-    avg = sum/3;
-    sdv = getStandardDeviation(v, avg, 0);
-    sum = 0;
-    for(int i=3; i<6; ++i)
-      sum += v[i];
-    avg2 = sum/3;
-    sdv2 = getStandardDeviation(v, avg2, 3);
-    file << "th_" << index << "," << v[0] << "," << v[1] << "," << v[2] << "," << avg << "," << sdv << "," << "Mbps," << v[3] << "," << v[4] << "," << v[5] << "," << avg2 << "," << sdv2 << "," << "Mbps\n" ;
-    file.close();
-    return;
+      out << str << "\n";
   }
 }
 
@@ -214,17 +164,16 @@ int main (int argc, char *argv[])
   // uint32_t packetSize = 1.2 * 1024;
   // uint32_t numPackets = maxBytes / packetSize;
   double startTime, endTime, gapTime=10.0;
-  double thro;
+  double thro;  
   int index, value, k_index;
-  std::vector<double> thro_v;
+  std::vector<double> thro_v, ft_v;
   std::map<int, int> results;
 
-
-  results.insert ( std::pair<int, int>(1, 3));
-  results.insert ( std::pair<int, int>(2, 6));
-  results.insert ( std::pair<int, int>(3, 3));
-  results.insert ( std::pair<int, int>(4, 6));
-  results.insert ( std::pair<int, int>(5, 6));
+  results.insert ( std::pair<int, int>(1, 6));
+  results.insert ( std::pair<int, int>(2, 12));
+  results.insert ( std::pair<int, int>(3, 6));
+  results.insert ( std::pair<int, int>(4, 12));
+  results.insert ( std::pair<int, int>(5, 12));
 
   Time::SetResolution (Time::NS); 
 
@@ -378,11 +327,14 @@ int main (int argc, char *argv[])
     // }
     thro = i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024;
     thro_v.push_back(thro);
+    double ft = i->second.timeLastTxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ();
+    ft_v.push_back(ft);
     ++k_index;
+    // std::cout << "ft: " << ft << "\n";
     if(k_index == value)
     {
       k_index = 0;
-      writeToFile(index, thro_v);
+      writeToFile(index, thro_v, ft_v);
       thro_v.clear();
       ++index;
       value = results[index];
@@ -392,8 +344,8 @@ int main (int argc, char *argv[])
   monitor->SerializeToXmlFile ("project-2.flowmon", true, true);
   // adding code for flow monitor ------------------------
   
-  
-  
+  mergeFiles();
+
   
   // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps_1[0].Get (0));
   // std::cout << "total bytes rcvd : " << sink1->GetTotalRx () << std::endl;
