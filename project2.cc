@@ -72,7 +72,7 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
 		return;
 	}
 
-	uint maxBytes = 1 * 1024;
+	uint maxBytes = 500 * 1024 * 1024;
 	// destination applicaiton
 	PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
 	ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
@@ -356,6 +356,7 @@ int main (int argc, char *argv[])
 			k_index = 0;
 			writeToFile(index, thro_v, ft_v);
 			thro_v.clear();
+			ft_v.clear();
 			++index;
 			value = results[index];
 		}
