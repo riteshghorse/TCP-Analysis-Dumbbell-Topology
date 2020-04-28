@@ -72,7 +72,7 @@ void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort
 		return;
 	}
 
-	uint maxBytes = 500 * 1024 * 1024;
+	uint maxBytes = 1 * 1024;
 	// destination applicaiton
 	PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
 	ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
@@ -124,7 +124,7 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 		// get average and standard deviation for throughput
 		for(int i=0; i<3; ++i)
 			sum += arr[i];
-		avg = sum/3;
+		avg = sum/3.0;
 		sdv = getStandardDeviation (arr, avg, 0, 3);	
 		file << "th_" << index << "," << arr[0] << "," << arr[1] << "," << arr[2] << "," << avg << "," << sdv << "," << "Mbps,,,,,,\n" ;
 		file.close();
@@ -133,7 +133,7 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 		sum = 0;
 		for (int i=0; i<3; ++i)
 			sum += farr[i];
-		avg = sum/3;
+		avg = sum/3.0;
 		sdv = getStandardDeviation(farr, avg, 0, 3);
 		file2 << "afct_" << index << "," << farr[0] << "," << farr[1] << "," << farr[2] << "," << avg << "," << sdv << "," << "sec,,,,,,\n" ;
 		file2.close();
@@ -148,14 +148,14 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 		sum = 0;
 		for (int i=0; i<3; ++i)
 			sum += arr[i];
-		avg = sum/3;
+		avg = sum/3.0;
 		sdv = getStandardDeviation (arr, avg, 0, 3);
 		
 		// get average and standard deviation for throughput for S2 - D2
 		sum = 0;
 		for (int i=3; i<6; ++i)
 			sum += arr[i];
-		avg2 = sum/3;
+		avg2 = sum/3.0;
 		sdv2 = getStandardDeviation (arr, avg2, 3, 6);
 		file << "th_" << index << "," << arr[0] << "," << arr[1] << "," << arr[2] << "," << avg << "," << sdv << "," << "Mbps," << arr[3] << "," << arr[4] << "," << arr[5] << "," << avg2 << "," << sdv2 << "," << "Mbps\n" ;
 		file.close ();
@@ -164,14 +164,14 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 		sum = 0;
 		for (int i=0; i<3; ++i)
 			sum += farr[i];
-		avg = sum/3;
+		avg = sum/3.0;
 		sdv = getStandardDeviation (farr, avg, 0, 3);
 
 		// get average and standard deviation for flow completion time for S2 - D2
 		sum = 0;
 		for (int i=3; i<6; ++i)
 			sum += farr[i];
-		avg2 = sum/3;
+		avg2 = sum/3.0;
 		sdv2 = getStandardDeviation (farr, avg2, 3, 6);
 		file2 << "afct_" << index << "," << farr[0] << "," << farr[1] << "," << farr[2] << "," << avg << "," << sdv << "," << "sec," << farr[3] << "," << farr[4] << "," << farr[5] << "," << avg2 << "," << sdv2 << "," << "sec\n" ;
 		file.close ();
