@@ -19,13 +19,11 @@
 /*
           Network Topology
     
-  n0 ----               ---- n4
+  s1 ----               ---- d1
          -             -
-          n2---------n3
+          r1---------r2
          -             -
-  n1 ----               ---- n5
-    
-
+  s2 ----               ---- d2
 
 */
 #include <fstream>
@@ -43,49 +41,6 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("TcpAnalysis");
 
-/* Creates application for sender and receiver with mentioned TCP version */
-void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, std::string tcp_version, double startTime, double endTime)
-{
-	/*
-	parameters
-	-----------
-	src  :	sender node
-	dest :  destination node	
-	sinkAddress :	address of destination
-	sinkPort    :   port number of destination
-	tcp_version :   TCP to use
-	startTime   :   app start time
-	stopTime   :   app stop time
-	*/
-
-	// set tcp version
-	if (tcp_version.compare ("TcpBic"))
-	{
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId ()));
-	}
-	else if (tcp_version.compare ("TcpDctcp"))
-	{
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpDctcp::GetTypeId ()));
-	}
-	else
-	{
-		return;
-	}
-
-	uint maxBytes = 1 * 1024;
-	// destination applicaiton
-	PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
-	ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
-	sinkApp.Start (Seconds (startTime));
-	sinkApp.Stop (Seconds (endTime));
-
-	// sender application
-	BulkSendHelper sourceHelper ("ns3::TcpSocketFactory", sinkAddress);
-	sourceHelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-	ApplicationContainer sourceApp = sourceHelper.Install (src);
-	sourceApp.Start (Seconds (startTime));
-	sourceApp.Stop (Seconds (endTime));
-}
 
 /* Returns standard deviation of data */
 double getStandardDeviation (double arr[], double mean, int start, int end)
@@ -95,6 +50,31 @@ double getStandardDeviation (double arr[], double mean, int start, int end)
     sdv += pow (arr[i]-mean, 2);
   
   return sqrt (sdv / 3);
+}
+
+/* initialize output file with required header*/
+void setupOutputFile()
+{
+	std::ofstream file;
+	file.open("tcp_rghorse.csv", std::ios::out | std::ios::trunc);
+	file << "exp,r1_s1,r2_s1,r3_s1,avg_s1,std_s1,unit_s1,r1_s2,r2_s2,r3_s2,avg_s2,std_s2,unit_s2\n";
+	file.close();
+}
+
+
+/*Merge file containing data for throughput and average flow completion time*/
+void mergeFiles ()
+{
+	std::ifstream in ("achfile.csv");
+	std::ofstream out ("tcp_rghorse.csv", std::ios::app);
+	std::string str;
+	for ( ; std::getline (in, str); )
+	{
+		out << str << "\n";
+	}
+	in.close();
+	out.close();
+	remove("achfile.csv");
 }
 
 /* write metrics to file */
@@ -180,19 +160,48 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 }
 
 
-/*Merge file containing data for throughput and average flow completion time*/
-void mergeFiles ()
+/* Creates application for sender and receiver with mentioned TCP version */
+void exp1 (Ptr<Node> src, Ptr<Node> dest, Address sinkAddress, uint16_t sinkPort, uint maxBytes, std::string tcp_version, double startTime, double endTime)
 {
-	std::ifstream in ("achfile.csv");
-	std::ofstream out ("tcp_rghorse.csv", std::ios::app);
-	std::string str;
-	for ( ; std::getline (in, str); )
+	/*
+	parameters
+	-----------
+	src  :	sender node
+	dest :  destination node	
+	sinkAddress :	address of destination
+	sinkPort    :   port number of destination
+	maxBytes    :   bytes of data to be send by Bulk Sender Application
+	tcp_version :   TCP to use
+	startTime   :   app start time
+	stopTime    :   app stop time
+	*/
+
+	// set tcp version
+	if (tcp_version.compare ("TcpBic"))
 	{
-		out << str << "\n";
+		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpBic::GetTypeId ()));
 	}
-	in.close();
-	out.close();
-	remove("achfile.csv");
+	else if (tcp_version.compare ("TcpDctcp"))
+	{
+		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpDctcp::GetTypeId ()));
+	}
+	else
+	{
+		return;
+	}
+
+	// destination applicaiton
+	PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
+	ApplicationContainer sinkApp = packetSinkHelper.Install (dest);
+	sinkApp.Start (Seconds (startTime));
+	sinkApp.Stop (Seconds (endTime));
+
+	// sender application
+	BulkSendHelper sourceHelper ("ns3::TcpSocketFactory", sinkAddress);
+	sourceHelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
+	ApplicationContainer sourceApp = sourceHelper.Install (src);
+	sourceApp.Start (Seconds (startTime));
+	sourceApp.Stop (Seconds (endTime));
 }
 
 int main (int argc, char *argv[])
@@ -200,10 +209,10 @@ int main (int argc, char *argv[])
 	double startTime, endTime, gapTime=10.0;
 	double thro;  
 	int index, value, k_index;
+	uint maxBytes = 500 * 1024 * 1024;
 	std::vector<double> thro_v, ft_v;
 	std::map<int, int> results;
-	std::ofstream file;
-
+	
 	results.insert ( std::pair<int, int>(1, 6));
 	results.insert ( std::pair<int, int>(2, 12));
 	results.insert ( std::pair<int, int>(3, 6));
@@ -211,70 +220,75 @@ int main (int argc, char *argv[])
 	results.insert ( std::pair<int, int>(5, 12));
 
 	Time::SetResolution (Time::NS); 
-	file.open("tcp_rghorse.csv", std::ios::out | std::ios::trunc);
-	file << "exp,r1_s1,r2_s1,r3_s1,avg_s1,std_s1,unit_s1,r1_s2,r2_s2,r3_s2,avg_s2,std_s2,unit_s2\n";
-	file.close();
+	setupOutputFile ();
 	NS_LOG_INFO ("Creating Nodes");
+	
 	NodeContainer nodes;
-	nodes.Create (6);
-
-	NodeContainer n0n2 = NodeContainer (nodes.Get (0), nodes.Get (2));
-	NodeContainer n1n2 = NodeContainer (nodes.Get (1), nodes.Get (2));
-	NodeContainer n2n3 = NodeContainer (nodes.Get (2), nodes.Get (3));
-	NodeContainer n3n4 = NodeContainer (nodes.Get (3), nodes.Get (4));
-	NodeContainer n3n5 = NodeContainer (nodes.Get (3), nodes.Get (5));
+	NodeContainer sender, destination, router;
+	InternetStackHelper internet;
+	PointToPointHelper pointToPoint;
+	Ipv4AddressHelper address;
+	
+	sender.Create(2);
+	destination.Create(2);
+	router.Create(2);
+	
+	NodeContainer s1r1 = NodeContainer (sender.Get (0), router.Get (0));
+	NodeContainer s2r1 = NodeContainer (sender.Get (1), router.Get (0));
+	NodeContainer r1r2 = NodeContainer (router.Get (0), router.Get (1));
+	NodeContainer r2d1 = NodeContainer (router.Get (1), destination.Get (0));
+	NodeContainer r2d2 = NodeContainer (router.Get (1), destination.Get (1));
 
 	// install protocols
-	InternetStackHelper internet;
-	internet.Install (nodes);
+	internet.Install (sender);
+	internet.Install (router);
+	internet.Install (destination);
 
-	// create channels
-	PointToPointHelper pointToPoint;
+	// setting channel attributes - link of 1 Gbps and delay 2ms
 	pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
 	pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
 	// creating channels
-	NetDeviceContainer d0d2 = pointToPoint.Install (n0n2);
-	NetDeviceContainer d1d2 = pointToPoint.Install (n1n2);
-	NetDeviceContainer d2d3 = pointToPoint.Install (n2n3);
-	NetDeviceContainer d3d4 = pointToPoint.Install (n3n4);
-	NetDeviceContainer d3d5 = pointToPoint.Install (n3n5); 
+	NetDeviceContainer d_s1r1 = pointToPoint.Install (s1r1);
+	NetDeviceContainer d_s2r1 = pointToPoint.Install (s2r1);
+	NetDeviceContainer d_r1r2 = pointToPoint.Install (r1r2);
+	NetDeviceContainer d_r2d1 = pointToPoint.Install (r2d1);
+	NetDeviceContainer d_r2d2 = pointToPoint.Install (r2d2); 
 
 	// adding IP addresses
-	Ipv4AddressHelper address;
 	address.SetBase ("10.1.1.0", "255.255.255.0");
-	Ipv4InterfaceContainer i0i2 = address.Assign (d0d2);
+	Ipv4InterfaceContainer i_s1r1 = address.Assign (d_s1r1);
 
 	address.SetBase ("10.1.2.0", "255.255.255.0");
-	Ipv4InterfaceContainer i1i2 = address.Assign (d1d2);
+	Ipv4InterfaceContainer i_s2r1 = address.Assign (d_s2r1);
 
 	address.SetBase ("10.1.3.0", "255.255.255.0");
-	Ipv4InterfaceContainer i2i3 = address.Assign (d2d3);
+	Ipv4InterfaceContainer i_r1r2 = address.Assign (d_r1r2);
 
 	address.SetBase ("10.1.4.0", "255.255.255.0");
-	Ipv4InterfaceContainer i3i4 = address.Assign (d3d4);
+	Ipv4InterfaceContainer i_r2d1 = address.Assign (d_r2d1);
 
 	address.SetBase ("10.1.5.0", "255.255.255.0");
-	Ipv4InterfaceContainer i3i5 = address.Assign (d3d5);
+	Ipv4InterfaceContainer i_r2d2 = address.Assign (d_r2d2);
 
 
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
 	// for netanim---------------------------------------------------
 	AnimationInterface anim ("project.xml");
-	anim.SetConstantPosition (nodes.Get(0), 10.0, 10.0);
-	anim.SetConstantPosition (nodes.Get(1), 10.0, 70.0);
-	anim.SetConstantPosition (nodes.Get(2), 40.0, 40.0);
-	anim.SetConstantPosition (nodes.Get(3), 60.0, 40.0);
-	anim.SetConstantPosition (nodes.Get(4), 80.0, 10.0);
-	anim.SetConstantPosition (nodes.Get(5), 80.0, 70.0);
+	anim.SetConstantPosition (sender.Get (0), 10.0, 10.0);
+	anim.SetConstantPosition (sender.Get (1), 10.0, 70.0);
+	anim.SetConstantPosition (router.Get (0), 40.0, 40.0);
+	anim.SetConstantPosition (router.Get (1), 60.0, 40.0);
+	anim.SetConstantPosition (destination.Get (0), 80.0, 10.0);
+	anim.SetConstantPosition (destination.Get (1), 80.0, 70.0);
 
 	// setting up destination addresses and their ports
 	uint16_t sinkPort_1 = 8080;
-	Address sinkAddress_1 (InetSocketAddress (i3i4.GetAddress (1), sinkPort_1));
+	Address sinkAddress_1 (InetSocketAddress (i_r2d1.GetAddress (1), sinkPort_1));
 
 	uint16_t sinkPort_2 = 8080;
-	Address sinkAddress_2 (InetSocketAddress (i3i5.GetAddress (1), sinkPort_2));
+	Address sinkAddress_2 (InetSocketAddress (i_r2d2.GetAddress (1), sinkPort_2));
 
 	startTime = 0.0;
 	endTime = 10.0;
@@ -283,7 +297,7 @@ int main (int argc, char *argv[])
 	// Experiment 1
 	while (i--)
 	{
-		exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
+		exp1 (sender.Get (0), destination.Get (0), sinkAddress_1, sinkPort_1, maxBytes, "TcpBic", startTime, endTime);
 		startTime += gapTime + 1;
 		endTime += gapTime;
 	}
@@ -292,8 +306,8 @@ int main (int argc, char *argv[])
 	i = 3;
 	while (i--)
 	{
-		exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
-		exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpBic", startTime, endTime);
+		exp1 (sender.Get (0), destination.Get (0), sinkAddress_1, sinkPort_1, maxBytes, "TcpBic", startTime, endTime);
+		exp1 (sender.Get (1), destination.Get (1), sinkAddress_2, sinkPort_2, maxBytes, "TcpBic", startTime, endTime);
 		startTime += gapTime;
 		endTime += gapTime;
 	}
@@ -302,7 +316,7 @@ int main (int argc, char *argv[])
 	i = 3;
 	while (i--)
 	{
-		exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpDctcp", startTime, endTime);
+		exp1 (sender.Get (0), destination.Get (0), sinkAddress_1, sinkPort_1, maxBytes, "TcpDctcp", startTime, endTime);
 		startTime += gapTime + 1;
 		endTime += gapTime;
 	}
@@ -312,8 +326,8 @@ int main (int argc, char *argv[])
 	i = 3;
 	while (i--)
 	{
-		exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpDctcp", startTime, endTime);
-		exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
+		exp1 (sender.Get (0), destination.Get (0), sinkAddress_1, sinkPort_1, maxBytes, "TcpDctcp", startTime, endTime);
+		exp1 (sender.Get (1), destination.Get (1), sinkAddress_2, sinkPort_2, maxBytes, "TcpDctcp", startTime, endTime);
 		startTime += gapTime;
 		endTime += gapTime;
 	}
@@ -322,8 +336,8 @@ int main (int argc, char *argv[])
 	i = 3;
 	while (i--)
 	{
-		exp1 (nodes.Get (0), nodes.Get (4), sinkAddress_1, sinkPort_1, "TcpBic", startTime, endTime);
-		exp1 (nodes.Get (1), nodes.Get (5), sinkAddress_2, sinkPort_2, "TcpDctcp", startTime, endTime);
+		exp1 (sender.Get (0), destination.Get (0), sinkAddress_1, sinkPort_1, maxBytes, "TcpBic", startTime, endTime);
+		exp1 (sender.Get (1), destination.Get (1), sinkAddress_2, sinkPort_2, maxBytes, "TcpDctcp", startTime, endTime);
 		startTime += gapTime;
 		endTime += gapTime;
 	}
@@ -358,7 +372,7 @@ int main (int argc, char *argv[])
 		ft_v.push_back(ft);
 		++k_index;
 
-		if(k_index == value)
+		if(k_index == value)	// when flows for an experiment are done, write to file
 		{
 			k_index = 0;
 			writeToFile(index, thro_v, ft_v);
