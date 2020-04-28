@@ -184,12 +184,15 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 void mergeFiles ()
 {
 	std::ifstream in ("achfile.csv");
-	std::ofstream out ("tcp_rghorse.csv", std::ios_base::out | std::ios_base::app);
+	std::ofstream out ("tcp_rghorse.csv", std::ios::app);
 	std::string str;
 	for ( ; std::getline (in, str); )
 	{
 		out << str << "\n";
 	}
+	in.close();
+	out.close();
+	remove("achfile.csv");
 }
 
 int main (int argc, char *argv[])
@@ -199,6 +202,7 @@ int main (int argc, char *argv[])
 	int index, value, k_index;
 	std::vector<double> thro_v, ft_v;
 	std::map<int, int> results;
+	std::ofstream file;
 
 	results.insert ( std::pair<int, int>(1, 6));
 	results.insert ( std::pair<int, int>(2, 12));
@@ -207,7 +211,9 @@ int main (int argc, char *argv[])
 	results.insert ( std::pair<int, int>(5, 12));
 
 	Time::SetResolution (Time::NS); 
-
+	file.open("tcp_rghorse.csv", std::ios::out | std::ios::trunc);
+	file << "exp,r1_s1,r2_s1,r3_s1,avg_s1,std_s1,unit_s1,r1_s2,r2_s2,r3_s2,avg_s2,std_s2,unit_s2\n";
+	file.close();
 	NS_LOG_INFO ("Creating Nodes");
 	NodeContainer nodes;
 	nodes.Create (6);
@@ -348,6 +354,7 @@ int main (int argc, char *argv[])
 		thro = i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds())/1024/1024;
 		thro_v.push_back(thro);
 		double ft = i->second.timeLastTxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ();
+		std::cout << "  ft: " << ft << "\n";
 		ft_v.push_back(ft);
 		++k_index;
 
