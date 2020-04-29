@@ -149,6 +149,7 @@ void writeToFile (int index, std::vector<double> v, std::vector<double> fctv)
 
 		// get average and standard deviation for flow completion time for S2 - D2
 		sum = 0;
+
 		for (int i=3; i<6; ++i)
 			sum += farr[i];
 		avg2 = sum/3.0;
@@ -209,7 +210,7 @@ int main (int argc, char *argv[])
 	double startTime, endTime, gapTime=10.0;
 	double thro;  
 	int index, value, k_index;
-	uint maxBytes = 500 * 1024 * 1024;
+	uint maxBytes = 1 * 1024;
 	std::vector<double> thro_v, ft_v;
 	std::map<int, int> results;
 	
@@ -293,7 +294,7 @@ int main (int argc, char *argv[])
 	startTime = 0.0;
 	endTime = 10.0;
 	int i = 3;
-
+	
 	// Experiment 1
 	while (i--)
 	{
